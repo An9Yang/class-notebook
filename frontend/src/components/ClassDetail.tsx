@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import api from '../services/api';
 import { extractResponseData, extractErrorMessage } from '../utils/responseHandler';
+import QAChat from './QAChat';
 
 interface Recording {
   _id: string;
@@ -51,6 +52,7 @@ const ClassDetail: React.FC = () => {
   const [uploading, setUploading] = useState(false);
   const [expandedTranscripts, setExpandedTranscripts] = useState<ExpandedState>({});
   const [expandedOCR, setExpandedOCR] = useState<ExpandedState>({});
+  const [showChat, setShowChat] = useState(false);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -322,9 +324,17 @@ const ClassDetail: React.FC = () => {
             创建时间：{new Date(classData.createdAt).toLocaleString()}
           </p>
         </div>
-        <button onClick={() => navigate('/dashboard')} style={styles.backButton}>
-          返回
-        </button>
+        <div style={styles.headerActions}>
+          <button 
+            onClick={() => setShowChat(!showChat)} 
+            style={{ ...styles.backButton, backgroundColor: '#61dafb' }}
+          >
+            {showChat ? '隐藏助手' : '🤖 学习助手'}
+          </button>
+          <button onClick={() => navigate('/dashboard')} style={styles.backButton}>
+            返回
+          </button>
+        </div>
       </header>
 
       <div style={styles.content}>
@@ -514,6 +524,13 @@ const ClassDetail: React.FC = () => {
           />
         </section>
       </div>
+
+      {/* 问答助手 */}
+      {showChat && (
+        <div style={styles.chatContainer}>
+          <QAChat classId={classData._id} />
+        </div>
+      )}
     </div>
   );
 };
@@ -530,6 +547,10 @@ const styles: { [key: string]: React.CSSProperties } = {
     display: 'flex',
     justifyContent: 'space-between',
     alignItems: 'center'
+  },
+  headerActions: {
+    display: 'flex',
+    gap: '10px'
   },
   meta: {
     color: '#666',
@@ -723,6 +744,12 @@ const styles: { [key: string]: React.CSSProperties } = {
     color: '#999',
     textAlign: 'center',
     padding: '40px'
+  },
+  chatContainer: {
+    position: 'fixed',
+    bottom: '20px',
+    right: '20px',
+    zIndex: 1000
   }
 };
 

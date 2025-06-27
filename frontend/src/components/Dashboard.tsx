@@ -12,8 +12,8 @@ interface Class {
   courseName: string;
   teacherName: string;
   createdAt: string;
-  recordings: any[];
-  images: any[];
+  recordings?: any[];
+  images?: any[];
 }
 
 const Dashboard: React.FC = () => {

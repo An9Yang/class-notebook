@@ -11,6 +11,8 @@ interface SearchResult {
   courseName: string;
   teacherName: string;
   createdAt: string;
+  recordings?: any[];
+  images?: any[];
   _matchCount?: number;
 }
 
@@ -52,7 +54,7 @@ const SearchBar: React.FC<SearchBarProps> = ({
         if (currentFilters.endDate) params.endDate = currentFilters.endDate;
 
         const response = await api.get('/api/classes/search', { params });
-        const data = extractResponseData(response);
+        const data = extractResponseData(response, 'search');
         
         if (onSearch) {
           onSearch(data.classes || []);

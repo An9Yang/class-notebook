@@ -8,15 +8,28 @@
  * @param dataKey - The key to look for in the response (e.g., 'class', 'classes', 'user')
  * @returns The extracted data or null if not found
  */
-export function extractResponseData(response: any, dataKey: string): any {
-  // Direct access
-  if (response && response[dataKey]) {
-    return response[dataKey];
+export function extractResponseData(response: any, dataKey?: string): any {
+  // For status: 'success' pattern with data object
+  if (response && response.status === 'success' && response.data) {
+    return response.data;
   }
   
-  // Nested in data object
-  if (response && response.data && response.data[dataKey]) {
-    return response.data[dataKey];
+  // If no dataKey is provided, return the data object if it exists
+  if (!dataKey && response && response.data) {
+    return response.data;
+  }
+  
+  // Only check dataKey if it's provided
+  if (dataKey) {
+    // Direct access
+    if (response && response[dataKey]) {
+      return response[dataKey];
+    }
+    
+    // Nested in data object
+    if (response && response.data && response.data[dataKey]) {
+      return response.data[dataKey];
+    }
   }
   
   // Direct object (for single items)
