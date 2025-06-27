@@ -191,6 +191,62 @@ ${context}`;
   }
 
   /**
+   * 增强OCR识别结果
+   */
+  async enhanceOCRResult(ocrText, options = {}) {
+    const systemPrompt = `分析OCR文本并提取表格。
+
+如果文本包含表格数据，返回JSON格式：
+{
+  "tables": [表格数组],
+  "text": "非表格文本"
+}
+
+表格格式：三维数组 [[[单元格]]]
+示例：[[["名称","值"],["A","1"],["B","2"]]]
+
+如果没有表格，返回：
+{
+  "tables": [],
+  "text": "所有文本"
+}`;
+
+    const messages = [
+      { role: 'system', content: systemPrompt },
+      { role: 'user', content: `请处理以下OCR识别的文本：\n\n${ocrText}` }
+    ];
+
+    try {
+      const response = await this.createChatCompletion(messages, {
+        temperature: 0.1, // 非常低的温度，确保输出稳定
+        max_tokens: 4000,
+        ...options
+      });
+
+      const content = response.choices[0].message.content;
+      
+      // 尝试解析JSON响应
+      try {
+        const parsed = JSON.parse(content);
+        return {
+          text: parsed.text || ocrText,
+          tables: parsed.tables || []
+        };
+      } catch (parseError) {
+        // 如果不是JSON格式，返回原始文本
+        console.log('AI返回非JSON格式，使用纯文本');
+        return {
+          text: content || ocrText,
+          tables: []
+        };
+      }
+    } catch (error) {
+      console.error('AI增强OCR失败:', error.message);
+      throw error;
+    }
+  }
+
+  /**
    * 验证服务配置
    */
   validateConfig() {

@@ -64,6 +64,7 @@ const classSchema = new mongoose.Schema({
     url: String,
     size: Number,
     ocrText: String, // OCR识别的文字
+    ocrTables: [[String]], // OCR识别的表格数据
     ocrStatus: {
       type: String,
       enum: ['pending', 'processing', 'completed', 'failed'],

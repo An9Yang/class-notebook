@@ -139,8 +139,29 @@ exports.processImageOCR = async (req, res) => {
       // 调用Azure OCR服务
       const ocrResult = await extractTextFromImage(imagePath);
       
+      // 如果有AI服务，让AI处理OCR结果
+      const { azureOpenAI } = require('../services/azureOpenAI');
+      let processedResult = ocrResult;
+      
+      if (azureOpenAI.validateConfig() && ocrResult.text) {
+        try {
+          console.log('使用AI增强OCR结果...');
+          const enhancedResult = await azureOpenAI.enhanceOCRResult(ocrResult.text);
+          processedResult = {
+            text: enhancedResult.text || ocrResult.text,
+            tables: enhancedResult.tables || ocrResult.tables,
+            confidence: ocrResult.confidence
+          };
+        } catch (aiError) {
+          console.error('AI增强失败，使用原始OCR结果:', aiError.message);
+        }
+      }
+      
       // 更新OCR结果
-      image.ocrText = ocrResult.text;
+      image.ocrText = processedResult.text;
+      if (processedResult.tables && processedResult.tables.length > 0) {
+        image.ocrTables = processedResult.tables;
+      }
       image.ocrStatus = 'completed';
       await classData.save();
       

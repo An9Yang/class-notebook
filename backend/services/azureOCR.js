@@ -13,6 +13,10 @@ const getDocumentClient = () => {
       throw new Error('Azure Document Intelligence未配置');
     }
     
+    console.log('Azure Document Intelligence配置:');
+    console.log('Endpoint:', endpoint);
+    console.log('Key前缀:', apiKey.substring(0, 10) + '...');
+    
     documentClient = new DocumentAnalysisClient(
       endpoint,
       new AzureKeyCredential(apiKey)
@@ -29,20 +33,30 @@ exports.extractTextFromImage = async (imagePath) => {
     // 读取图片文件
     const imageBuffer = fs.readFileSync(imagePath);
     
-    // 使用预构建的文档模型进行分析
+    console.log('开始OCR识别，文件大小:', imageBuffer.length, 'bytes');
+    
+    // 使用预构建的读取模型进行分析
     const poller = await client.beginAnalyzeDocument(
-      'prebuilt-document',
+      'prebuilt-read',  // 改用read模型，专门用于文字识别
       imageBuffer
     );
+    
+    console.log('等待OCR处理完成...');
     
     // 等待分析完成
     const result = await poller.pollUntilDone();
     
-    // 提取文本内容
+    // 提取文本内容，保持原始格式
     let extractedText = '';
     
     if (result.content) {
       extractedText = result.content;
+    }
+    
+    // 如果有段落信息，使用段落来更好地保持格式
+    if (result.paragraphs && result.paragraphs.length > 0) {
+      const paragraphs = result.paragraphs.map(p => p.content);
+      extractedText = paragraphs.join('\n\n');
     }
     
     // 如果有表格，也提取表格内容
@@ -69,8 +83,24 @@ exports.extractTextFromImage = async (imagePath) => {
     };
     
   } catch (error) {
-    console.error('OCR识别错误:', error);
-    throw new Error(`OCR识别失败: ${error.message}`);
+    console.error('OCR识别错误详情:');
+    console.error('错误类型:', error.name);
+    console.error('错误消息:', error.message);
+    console.error('错误堆栈:', error.stack);
+    
+    if (error.code === 'ENOENT') {
+      throw new Error('图片文件不存在');
+    }
+    
+    if (error.statusCode === 401) {
+      throw new Error('Azure认证失败，请检查API密钥');
+    }
+    
+    if (error.statusCode === 404) {
+      throw new Error('Azure endpoint不正确');
+    }
+    
+    throw new Error(`OCR识别失败: ${error.message || '未知错误'}`);
   }
 };
 
