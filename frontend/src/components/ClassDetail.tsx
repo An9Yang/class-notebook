@@ -3,6 +3,10 @@ import { useParams, useNavigate } from 'react-router-dom';
 import api from '../services/api';
 import { extractResponseData, extractErrorMessage } from '../utils/responseHandler';
 import QAChat from './QAChat';
+import RichTextEditor from './RichTextEditor';
+import EditorShortcutGuide from './EditorShortcutGuide';
+import OCRDisplay from './OCRDisplay';
+import '../styles/RichTextEditor.css';
 
 interface Recording {
   _id: string;
@@ -19,6 +23,7 @@ interface Image {
   filename: string;
   url: string;
   ocrText: string;
+  ocrTables?: string[][][];
   ocrStatus: string;
   timestamp: number;
   uploadedAt: string;
@@ -210,24 +215,46 @@ const ClassDetail: React.FC = () => {
 
   // 触发OCR识别
   const processOCR = async (imageId: string) => {
+    // 先更新状态为处理中
+    if (classData) {
+      const updatedImages = classData.images.map(img => 
+        img._id === imageId 
+          ? { ...img, ocrStatus: 'processing' }
+          : img
+      );
+      setClassData({ ...classData, images: updatedImages });
+    }
+    
     try {
       const response = await api.post(`/api/process/ocr/${classData?._id}/${imageId}`);
-      const { text } = response as any;
+      const data = extractResponseData(response);
+      const { text, tables } = data;
       
       // 更新本地状态
       if (classData) {
         const updatedImages = classData.images.map(img => 
           img._id === imageId 
-            ? { ...img, ocrText: text, ocrStatus: 'completed' }
+            ? { ...img, ocrText: text, ocrTables: tables, ocrStatus: 'completed' }
             : img
         );
         setClassData({ ...classData, images: updatedImages });
       }
       
-      alert('OCR识别成功！');
+      // 不再弹出提示，直接显示结果
     } catch (error: any) {
       console.error('OCR识别失败:', error);
       const errorMessage = extractErrorMessage(error);
+      
+      // 恢复状态
+      if (classData) {
+        const updatedImages = classData.images.map(img => 
+          img._id === imageId 
+            ? { ...img, ocrStatus: 'failed' }
+            : img
+        );
+        setClassData({ ...classData, images: updatedImages });
+      }
+      
       alert(`OCR识别失败: ${errorMessage}`);
     }
   };
@@ -478,15 +505,21 @@ const ClassDetail: React.FC = () => {
                       </button>
                     )}
                     
-                    {image.ocrText && (
+                    {image.ocrStatus === 'processing' && (
+                      <div style={styles.processingMessage}>
+                        <span style={styles.spinner}>⏳</span> 正在识别中...
+                      </div>
+                    )}
+                    
+                    {(image.ocrText || image.ocrTables) && (
                       <div style={styles.ocrText}>
                         <h4>识别内容：</h4>
-                        <p style={styles.ocrTextContent}>
-                          {expandedOCR[image._id] 
-                            ? image.ocrText 
-                            : truncateText(image.ocrText)}
-                        </p>
-                        {image.ocrText.length > 200 && (
+                        <OCRDisplay 
+                          text={image.ocrText} 
+                          tables={image.ocrTables}
+                        />
+                        {/* 如果内容很长，提供展开/收起功能 */}
+                        {image.ocrText && image.ocrText.length > 500 && (
                           <button
                             onClick={() => toggleOCR(image._id)}
                             style={styles.toggleButton}
@@ -516,11 +549,10 @@ const ClassDetail: React.FC = () => {
             </button>
           </div>
           
-          <textarea
-            value={notes}
-            onChange={(e) => setNotes(e.target.value)}
+          <RichTextEditor
+            content={notes}
+            onChange={setNotes}
             placeholder="在这里记录你的笔记..."
-            style={styles.notesArea}
           />
         </section>
       </div>
@@ -531,6 +563,9 @@ const ClassDetail: React.FC = () => {
           <QAChat classId={classData._id} />
         </div>
       )}
+      
+      {/* 快捷键指南 */}
+      <EditorShortcutGuide />
     </div>
   );
 };
@@ -704,7 +739,26 @@ const styles: { [key: string]: React.CSSProperties } = {
   ocrTextContent: {
     whiteSpace: 'pre-wrap',
     wordBreak: 'break-word',
-    lineHeight: '1.6'
+    lineHeight: '1.8',
+    fontFamily: 'monospace',
+    fontSize: '14px',
+    backgroundColor: '#f5f5f5',
+    padding: '10px',
+    borderRadius: '4px',
+    border: '1px solid #e0e0e0'
+  },
+  processingMessage: {
+    display: 'flex',
+    alignItems: 'center',
+    color: '#1976d2',
+    marginTop: '10px',
+    fontSize: '14px'
+  },
+  spinner: {
+    display: 'inline-block',
+    animation: 'spin 1s linear infinite',
+    marginRight: '8px',
+    fontSize: '16px'
   },
   notesArea: {
     width: '100%',
