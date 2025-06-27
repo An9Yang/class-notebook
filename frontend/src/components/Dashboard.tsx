@@ -3,6 +3,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
 import { extractResponseData, extractErrorMessage } from '../utils/responseHandler';
+import SearchBar from './SearchBar';
 
 interface Class {
   _id: string;
@@ -20,6 +21,8 @@ const Dashboard: React.FC = () => {
   const navigate = useNavigate();
   const [classes, setClasses] = useState<Class[]>([]);
   const [loading, setLoading] = useState(true);
+  const [searchResults, setSearchResults] = useState<Class[] | null>(null);
+  const [isSearching, setIsSearching] = useState(false);
 
   useEffect(() => {
     loadClasses();
@@ -73,6 +76,14 @@ const Dashboard: React.FC = () => {
     }
   };
 
+  const handleSearchResults = (results: Class[]) => {
+    setSearchResults(results.length > 0 ? results : null);
+    setIsSearching(results.length > 0);
+  };
+
+  // 决定显示哪些课堂
+  const displayClasses = searchResults !== null ? searchResults : classes;
+
   return (
     <div style={styles.container}>
       <header style={styles.header}>
@@ -92,6 +103,9 @@ const Dashboard: React.FC = () => {
           <p>点击下方按钮创建新的课堂笔记</p>
         </div>
 
+        {/* 搜索栏 */}
+        <SearchBar onSearch={handleSearchResults} />
+
         <div style={styles.actionSection}>
           <button onClick={handleNewClass} style={styles.primaryButton}>
             <span style={styles.buttonIcon}>🎙️</span>
@@ -102,11 +116,13 @@ const Dashboard: React.FC = () => {
         {/* 课堂列表 */}
         {loading ? (
           <div style={styles.loading}>加载中...</div>
-        ) : classes.length > 0 ? (
+        ) : displayClasses.length > 0 ? (
           <div style={styles.classesSection}>
-            <h2 style={styles.sectionTitle}>我的课堂</h2>
+            <h2 style={styles.sectionTitle}>
+              {isSearching ? `搜索结果 (${displayClasses.length})` : '我的课堂'}
+            </h2>
             <div style={styles.classesGrid}>
-              {classes.map(classItem => (
+              {displayClasses.map(classItem => (
                 <div 
                   key={classItem._id} 
                   style={styles.classCard}
@@ -136,6 +152,11 @@ const Dashboard: React.FC = () => {
                 </div>
               ))}
             </div>
+          </div>
+        ) : isSearching ? (
+          <div style={styles.noResults}>
+            <h3>没有找到匹配的结果</h3>
+            <p>试试其他搜索词或调整筛选条件</p>
           </div>
         ) : (
           <div style={styles.featuresGrid}>
@@ -303,6 +324,11 @@ const styles: { [key: string]: React.CSSProperties } = {
     display: 'flex',
     justifyContent: 'space-around',
     fontSize: '14px',
+    color: '#666'
+  },
+  noResults: {
+    textAlign: 'center',
+    padding: '60px 20px',
     color: '#666'
   }
 };

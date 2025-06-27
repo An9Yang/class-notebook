@@ -7,6 +7,7 @@ const { authenticate } = require('../middleware/auth');
 router.use(authenticate);
 
 // 课堂相关路由
+router.get('/search', classController.searchClasses); // 搜索课堂（必须在/:id之前）
 router.post('/', classController.createClass); // 创建课堂
 router.get('/', classController.getMyClasses); // 获取我的课堂列表
 router.get('/:id', classController.getClassById); // 获取课堂详情

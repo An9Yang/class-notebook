@@ -310,6 +310,123 @@ const deleteImage = async (req, res) => {
   }
 };
 
+// 搜索课堂
+const searchClasses = async (req, res) => {
+  try {
+    const userId = req.user.userId;
+    const { q, courseName, teacherName, startDate, endDate } = req.query;
+    
+    // 构建查询条件
+    const query = { userId };
+    
+    // 基础文本搜索
+    if (q) {
+      const searchRegex = new RegExp(q, 'i'); // 不区分大小写
+      query.$or = [
+        { title: searchRegex },
+        { description: searchRegex },
+        { notes: searchRegex },
+        { 'recordings.transcript': searchRegex },
+        { 'images.ocrText': searchRegex }
+      ];
+    }
+    
+    // 课程名称筛选
+    if (courseName) {
+      query.courseName = new RegExp(courseName, 'i');
+    }
+    
+    // 教师姓名筛选
+    if (teacherName) {
+      query.teacherName = new RegExp(teacherName, 'i');
+    }
+    
+    // 日期范围筛选
+    if (startDate || endDate) {
+      query.createdAt = {};
+      if (startDate) {
+        query.createdAt.$gte = new Date(startDate);
+      }
+      if (endDate) {
+        query.createdAt.$lte = new Date(endDate);
+      }
+    }
+    
+    console.log('搜索条件:', query);
+    
+    // 执行搜索
+    const classes = await Class.find(query)
+      .sort({ createdAt: -1 })
+      .limit(50); // 限制返回数量
+    
+    // 如果有搜索词，处理搜索结果高亮
+    if (q) {
+      const highlightedClasses = classes.map(classData => {
+        const classObj = classData.toObject();
+        
+        // 统计匹配次数
+        let matchCount = 0;
+        const searchRegex = new RegExp(q, 'gi');
+        
+        // 检查各字段的匹配
+        if (classObj.title?.match(searchRegex)) {
+          matchCount += classObj.title.match(searchRegex).length;
+        }
+        if (classObj.description?.match(searchRegex)) {
+          matchCount += classObj.description.match(searchRegex).length;
+        }
+        if (classObj.notes?.match(searchRegex)) {
+          matchCount += classObj.notes.match(searchRegex).length;
+        }
+        
+        // 检查录音转写内容
+        classObj.recordings?.forEach(recording => {
+          if (recording.transcript?.match(searchRegex)) {
+            matchCount += recording.transcript.match(searchRegex).length;
+          }
+        });
+        
+        // 检查OCR内容
+        classObj.images?.forEach(image => {
+          if (image.ocrText?.match(searchRegex)) {
+            matchCount += image.ocrText.match(searchRegex).length;
+          }
+        });
+        
+        return {
+          ...classObj,
+          _matchCount: matchCount
+        };
+      });
+      
+      // 按匹配次数排序
+      highlightedClasses.sort((a, b) => b._matchCount - a._matchCount);
+      
+      res.json({
+        status: 'success',
+        query: req.query,
+        count: highlightedClasses.length,
+        classes: highlightedClasses
+      });
+    } else {
+      res.json({
+        status: 'success',
+        query: req.query,
+        count: classes.length,
+        classes
+      });
+    }
+    
+  } catch (error) {
+    console.error('搜索课堂错误:', error);
+    res.status(500).json({
+      status: 'error',
+      message: '搜索失败',
+      error: error.message
+    });
+  }
+};
+
 module.exports = {
   createClass,
   getMyClasses,
@@ -317,5 +434,6 @@ module.exports = {
   updateClass,
   deleteClass,
   deleteRecording,
-  deleteImage
+  deleteImage,
+  searchClasses
 };
