@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>前后端连接测试</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+        }
+        .status-box {
+            margin: 20px 0;
+            padding: 15px;
+            border-radius: 8px;
+            color: white;
+        }
+        .success { background-color: #51cf66; }
+        .error { background-color: #ff6b6b; }
+        .warning { background-color: #ff8787; }
+        button {
+            padding: 10px 20px;
+            font-size: 16px;
+            cursor: pointer;
+            background-color: #61dafb;
+            border: none;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <h1>课堂笔记系统 - 连接测试</h1>
+    
+    <div id="status">
+        <p>点击按钮测试前后端连接...</p>
+    </div>
+    
+    <button onclick="testConnection()">测试连接</button>
+    
+    <script>
+        async function testConnection() {
+            const statusDiv = document.getElementById('status');
+            statusDiv.innerHTML = '<p>正在测试...</p>';
+            
+            try {
+                // 测试服务器健康检查
+                const serverResponse = await fetch('http://localhost:3001/api/health');
+                const serverData = await serverResponse.json();
+                
+                // 测试数据库健康检查
+                const dbResponse = await fetch('http://localhost:3001/api/health/db');
+                const dbData = await dbResponse.json();
+                
+                statusDiv.innerHTML = `
+                    <div class="status-box ${serverData.status === 'ok' ? 'success' : 'error'}">
+                        <h3>服务器状态</h3>
+                        <p>状态: ${serverData.status}</p>
+                        <p>消息: ${serverData.message}</p>
+                        <p>环境: ${serverData.environment}</p>
+                        <p>时间: ${new Date(serverData.timestamp).toLocaleString('zh-CN')}</p>
+                    </div>
+                    
+                    <div class="status-box ${dbData.status === 'ok' ? 'success' : 'warning'}">
+                        <h3>数据库状态</h3>
+                        <p>状态: ${dbData.status}</p>
+                        <p>连接: ${dbData.database}</p>
+                        <p>消息: ${dbData.message}</p>
+                    </div>
+                    
+                    <p style="margin-top: 20px; color: green; font-weight: bold;">✅ 前后端连接成功！</p>
+                `;
+            } catch (error) {
+                statusDiv.innerHTML = `
+                    <div class="status-box error">
+                        <h3>连接失败</h3>
+                        <p>错误: ${error.message}</p>
+                        <p>请确保后端服务器正在运行 (npm run dev)</p>
+                    </div>
+                `;
+            }
+        }
+        
+        // 页面加载时自动测试一次
+        window.onload = () => {
+            testConnection();
+        };
+    </script>
+</body>
+</html>
