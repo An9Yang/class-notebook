@@ -41,5 +41,6 @@ router.use(authenticate);
 router.post('/ask/:classId', qaController.askQuestion); // 提问
 router.get('/summary/:classId', qaController.generateSummary); // 生成总结
 router.get('/quiz/:classId', qaController.generateQuizQuestions); // 生成复习问题
+router.post('/generate-outline', qaController.generateOutline); // 生成大纲
 
 module.exports = router;

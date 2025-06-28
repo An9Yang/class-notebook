@@ -24,12 +24,14 @@ const classRoutes = require('./routes/class');
 const uploadRoutes = require('./routes/upload');
 const processRoutes = require('./routes/process');
 const qaRoutes = require('./routes/qa');
+const notesRoutes = require('./routes/notes');
 
 app.use('/api/auth', authRoutes);
 app.use('/api/classes', classRoutes);
 app.use('/api/upload', uploadRoutes);
 app.use('/api/process', processRoutes);
 app.use('/api/qa', qaRoutes);
+app.use('/api/notes', notesRoutes);
 
 // 健康检查端点 - 用于测试服务器是否正常运行
 app.get('/api/health', (req, res) => {

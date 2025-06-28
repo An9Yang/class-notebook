@@ -13,7 +13,7 @@ exports.uploadRecording = async (req, res) => {
       });
     }
 
-    const { classId } = req.body;
+    const { classId, events } = req.body;
     
     if (!classId) {
       return res.status(400).json({
@@ -46,6 +46,27 @@ exports.uploadRecording = async (req, res) => {
 
     // 添加录音到课堂
     classData.recordings.push(recording);
+    
+    // 如果有时间轴事件，保存它们
+    if (events) {
+      try {
+        const timelineEvents = JSON.parse(events);
+        if (Array.isArray(timelineEvents)) {
+          // 处理每个事件
+          timelineEvents.forEach(event => {
+            classData.timelineEvents.push({
+              eventId: event.id,
+              type: event.type,
+              timestamp: event.timestamp,
+              data: event.data
+            });
+          });
+        }
+      } catch (parseError) {
+        console.error('解析时间轴事件失败:', parseError);
+      }
+    }
+    
     const savedClass = await classData.save();
 
     // 获取新添加的录音的ID
@@ -183,11 +204,15 @@ exports.uploadImage = async (req, res) => {
     classData.images.push(image);
     await classData.save();
 
+    const uploadedImage = classData.images[classData.images.length - 1];
+    
     res.json({
       status: 'success',
       message: '图片上传成功',
       data: {
-        image: classData.images[classData.images.length - 1]
+        id: uploadedImage._id,
+        url: uploadedImage.url,
+        timestamp: uploadedImage.timestamp
       }
     });
 

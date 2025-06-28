@@ -77,6 +77,25 @@ const classSchema = new mongoose.Schema({
     }
   }],
   
+  // 时间轴事件（新增）
+  timelineEvents: [{
+    eventId: String,
+    type: {
+      type: String,
+      enum: ['image', 'note'],
+      required: true
+    },
+    timestamp: Number, // 录音开始后的秒数
+    data: {
+      content: String, // 笔记内容
+      imageId: String, // 关联的图片ID
+    },
+    createdAt: {
+      type: Date,
+      default: Date.now
+    }
+  }],
+  
   // 笔记内容（富文本）
   notes: {
     type: String,
