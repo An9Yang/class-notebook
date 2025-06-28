@@ -3,8 +3,8 @@ import { useParams, useNavigate } from 'react-router-dom';
 import api from '../services/api';
 import { extractResponseData, extractErrorMessage } from '../utils/responseHandler';
 import QAChat from './QAChat';
-import RichTextEditor from './RichTextEditor';
-import EditorShortcutGuide from './EditorShortcutGuide';
+import BlockEditor from './BlockEditor';
+import BlockEditorTips from './BlockEditorTips';
 import OCRDisplay from './OCRDisplay';
 import '../styles/RichTextEditor.css';
 
@@ -549,10 +549,10 @@ const ClassDetail: React.FC = () => {
             </button>
           </div>
           
-          <RichTextEditor
+          <BlockEditor
             content={notes}
             onChange={setNotes}
-            placeholder="在这里记录你的笔记..."
+            placeholder="输入 '/' 查看命令，或点击 '+' 添加内容块"
           />
         </section>
       </div>
@@ -564,8 +564,8 @@ const ClassDetail: React.FC = () => {
         </div>
       )}
       
-      {/* 快捷键指南 */}
-      <EditorShortcutGuide />
+      {/* 编辑器提示 */}
+      <BlockEditorTips />
     </div>
   );
 };

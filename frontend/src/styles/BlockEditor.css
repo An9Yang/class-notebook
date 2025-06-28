@@ -1,0 +1,514 @@
+/* TipTap 块状编辑器样式 */
+
+/* 容器样式 */
+.block-editor-container {
+  background: white;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  overflow: hidden;
+  min-height: 400px;
+  display: flex;
+  flex-direction: column;
+}
+
+/* 工具栏样式 */
+.block-editor-toolbar {
+  display: flex;
+  align-items: center;
+  padding: 10px 15px;
+  border-bottom: 1px solid #e0e0e0;
+  background: #f8f9fa;
+  gap: 5px;
+  flex-wrap: wrap;
+}
+
+.block-editor-toolbar button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border: 1px solid transparent;
+  background: white;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  color: #495057;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.block-editor-toolbar button:hover {
+  background: #e9ecef;
+  border-color: #dee2e6;
+}
+
+.block-editor-toolbar button.is-active {
+  background: #007bff;
+  color: white;
+  border-color: #007bff;
+}
+
+.toolbar-icon {
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.toolbar-divider {
+  width: 1px;
+  height: 24px;
+  background: #dee2e6;
+  margin: 0 5px;
+}
+
+/* 编辑器内容区域 */
+.block-editor-content {
+  flex: 1;
+  padding: 20px 40px;
+  overflow-y: auto;
+}
+
+/* TipTap 编辑器样式 */
+.block-editor-content .ProseMirror {
+  min-height: 300px;
+  outline: none;
+}
+
+.block-editor-content .ProseMirror > * {
+  margin-bottom: 1rem;
+}
+
+.block-editor-content .ProseMirror > *:last-child {
+  margin-bottom: 0;
+}
+
+/* 块状样式 - 每个元素看起来像一个块 */
+.block-editor-content .ProseMirror > * {
+  position: relative;
+  padding: 12px 16px;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+}
+
+.block-editor-content .ProseMirror > *:hover {
+  background: #f8f9fa;
+  border-color: #e9ecef;
+}
+
+.block-editor-content .ProseMirror > *:focus {
+  background: #f0f8ff;
+  border-color: #007bff;
+  outline: none;
+}
+
+/* 占位符文本 */
+.block-editor-content .ProseMirror p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  float: left;
+  color: #adb5bd;
+  pointer-events: none;
+  height: 0;
+}
+
+/* 标题样式 */
+.block-editor-content .ProseMirror h1 {
+  font-size: 2em;
+  font-weight: 600;
+  line-height: 1.25;
+  margin-top: 0;
+}
+
+.block-editor-content .ProseMirror h2 {
+  font-size: 1.5em;
+  font-weight: 600;
+  line-height: 1.3;
+  margin-top: 0;
+}
+
+.block-editor-content .ProseMirror h3 {
+  font-size: 1.25em;
+  font-weight: 600;
+  line-height: 1.4;
+  margin-top: 0;
+}
+
+/* 段落样式 */
+.block-editor-content .ProseMirror p {
+  line-height: 1.6;
+  margin: 0;
+}
+
+/* 列表样式 */
+.block-editor-content .ProseMirror ul,
+.block-editor-content .ProseMirror ol {
+  padding-left: 24px;
+  margin: 0;
+}
+
+.block-editor-content .ProseMirror li {
+  line-height: 1.6;
+  margin: 4px 0;
+}
+
+/* 任务列表样式 */
+.block-editor-content .ProseMirror ul[data-type="taskList"] {
+  list-style: none;
+  padding-left: 0;
+}
+
+.block-editor-content .ProseMirror li[data-type="taskItem"] {
+  display: flex;
+  align-items: flex-start;
+  padding: 4px 0;
+}
+
+.block-editor-content .ProseMirror li[data-type="taskItem"] > label {
+  flex: 0 0 auto;
+  margin-right: 8px;
+  user-select: none;
+}
+
+.block-editor-content .ProseMirror li[data-type="taskItem"] > label input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
+  margin-top: 2px;
+}
+
+.block-editor-content .ProseMirror li[data-type="taskItem"] > div {
+  flex: 1 1 auto;
+}
+
+/* 代码块样式 */
+.block-editor-content .ProseMirror pre {
+  background: #282c34;
+  color: #abb2bf;
+  font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+  font-size: 14px;
+  padding: 16px 20px;
+  border-radius: 6px;
+  overflow-x: auto;
+  margin: 0;
+}
+
+.block-editor-content .ProseMirror pre code {
+  background: none;
+  color: inherit;
+  font-size: inherit;
+  padding: 0;
+}
+
+/* 行内代码样式 */
+.block-editor-content .ProseMirror code {
+  background: #f6f8fa;
+  border: 1px solid #e1e4e8;
+  border-radius: 3px;
+  padding: 2px 6px;
+  font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+  font-size: 0.9em;
+  color: #d73a49;
+}
+
+/* 引用样式 */
+.block-editor-content .ProseMirror blockquote {
+  border-left: 4px solid #007bff;
+  padding-left: 16px;
+  margin: 0;
+  color: #6c757d;
+  font-style: italic;
+}
+
+/* 水平线样式 */
+.block-editor-content .ProseMirror hr {
+  border: none;
+  height: 2px;
+  background: #e9ecef;
+  margin: 24px 0;
+}
+
+/* 表格样式 */
+.block-editor-content .ProseMirror table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 0;
+  overflow: hidden;
+}
+
+.block-editor-content .ProseMirror th,
+.block-editor-content .ProseMirror td {
+  border: 1px solid #dee2e6;
+  padding: 8px 12px;
+  text-align: left;
+  vertical-align: top;
+  min-width: 100px;
+}
+
+.block-editor-content .ProseMirror th {
+  background: #f8f9fa;
+  font-weight: 600;
+}
+
+.block-editor-content .ProseMirror .selectedCell {
+  background: #e3f2fd;
+}
+
+/* 链接样式 */
+.block-editor-content .ProseMirror a {
+  color: #007bff;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.block-editor-content .ProseMirror a:hover {
+  text-decoration: underline;
+}
+
+/* 高亮样式 */
+.block-editor-content .ProseMirror mark {
+  background: #ffeb3b;
+  padding: 2px 0;
+}
+
+/* 文本对齐 */
+.block-editor-content .ProseMirror p[style*="text-align: center"],
+.block-editor-content .ProseMirror h1[style*="text-align: center"],
+.block-editor-content .ProseMirror h2[style*="text-align: center"],
+.block-editor-content .ProseMirror h3[style*="text-align: center"] {
+  text-align: center;
+}
+
+.block-editor-content .ProseMirror p[style*="text-align: right"],
+.block-editor-content .ProseMirror h1[style*="text-align: right"],
+.block-editor-content .ProseMirror h2[style*="text-align: right"],
+.block-editor-content .ProseMirror h3[style*="text-align: right"] {
+  text-align: right;
+}
+
+/* 选中状态 */
+.block-editor-content .ProseMirror .ProseMirror-selectednode {
+  outline: 2px solid #007bff;
+  outline-offset: 2px;
+}
+
+/* 提示区域 */
+.block-editor-tips {
+  padding: 15px 20px;
+  background: #f8f9fa;
+  border-top: 1px solid #e0e0e0;
+  font-size: 12px;
+  color: #6c757d;
+  line-height: 1.6;
+}
+
+.block-editor-tips p {
+  margin: 0 0 8px 0;
+  font-weight: 600;
+}
+
+.block-editor-tips ul {
+  margin: 0;
+  padding-left: 20px;
+}
+
+.block-editor-tips li {
+  margin: 4px 0;
+}
+
+.block-editor-tips code {
+  background: #e9ecef;
+  padding: 2px 4px;
+  border-radius: 3px;
+  font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+  font-size: 11px;
+  color: #495057;
+}
+
+/* 浮动菜单样式 */
+.ProseMirror-focused .has-focus {
+  transition: all 0.2s ease;
+}
+
+/* 响应式调整 */
+@media (max-width: 768px) {
+  .block-editor-content {
+    padding: 15px 20px;
+  }
+  
+  .block-editor-toolbar {
+    padding: 8px 12px;
+  }
+  
+  .block-editor-toolbar button {
+    width: 32px;
+    height: 32px;
+    font-size: 12px;
+  }
+  
+  .toolbar-icon {
+    font-size: 14px;
+  }
+}
+
+/* 拖拽时的样式 */
+.block-editor-content .ProseMirror .ProseMirror-hideselection *::selection {
+  background: transparent;
+}
+
+.block-editor-content .ProseMirror .ProseMirror-hideselection *::-moz-selection {
+  background: transparent;
+}
+
+/* 块级元素悬停效果 */
+.block-editor-content .ProseMirror > *::before {
+  content: '';
+  position: absolute;
+  left: -30px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 20px;
+  height: 20px;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+  background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20"><circle cx="5" cy="5" r="1.5" fill="%23adb5bd"/><circle cx="10" cy="5" r="1.5" fill="%23adb5bd"/><circle cx="5" cy="10" r="1.5" fill="%23adb5bd"/><circle cx="10" cy="10" r="1.5" fill="%23adb5bd"/><circle cx="5" cy="15" r="1.5" fill="%23adb5bd"/><circle cx="10" cy="15" r="1.5" fill="%23adb5bd"/></svg>') no-repeat center;
+  cursor: move;
+}
+
+.block-editor-content .ProseMirror > *:hover::before {
+  opacity: 1;
+}
+
+/* 添加块按钮样式 */
+.block-editor-content .ProseMirror > *::after {
+  content: '+';
+  position: absolute;
+  right: -30px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 20px;
+  height: 20px;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #007bff;
+  color: white;
+  border-radius: 4px;
+  font-size: 16px;
+  cursor: pointer;
+}
+
+.block-editor-content .ProseMirror > *:hover::after {
+  opacity: 1;
+}
+
+/* 焦点状态的块样式 */
+.block-editor-content .ProseMirror > *.has-focus {
+  background: #f0f8ff !important;
+  border-color: #007bff !important;
+  box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1);
+}
+
+/* 浮动菜单样式 */
+.bubble-menu {
+  display: flex;
+  background: white;
+  border: 1px solid #dee2e6;
+  border-radius: 6px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  padding: 4px;
+  gap: 2px;
+}
+
+.bubble-menu button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: none;
+  background: transparent;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+  color: #495057;
+  transition: all 0.2s ease;
+}
+
+.bubble-menu button:hover {
+  background: #f8f9fa;
+  color: #007bff;
+}
+
+.bubble-menu button.is-active {
+  background: #007bff;
+  color: white;
+}
+
+/* 斜杠命令菜单 */
+.slash-menu {
+  background: white;
+  border: 1px solid #dee2e6;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  padding: 8px;
+  min-width: 200px;
+  max-width: 300px;
+  z-index: 1000;
+}
+
+.slash-menu-search {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid #dee2e6;
+  border-radius: 4px;
+  font-size: 14px;
+  outline: none;
+  margin-bottom: 8px;
+}
+
+.slash-menu-search:focus {
+  border-color: #007bff;
+}
+
+.slash-menu-items {
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.slash-menu-item {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  padding: 8px 12px;
+  border: none;
+  background: none;
+  text-align: left;
+  cursor: pointer;
+  border-radius: 4px;
+  transition: background 0.2s ease;
+  gap: 12px;
+}
+
+.slash-menu-item:hover {
+  background: #f8f9fa;
+}
+
+.slash-menu-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  font-size: 16px;
+  font-weight: 600;
+  color: #007bff;
+}
+
+.slash-menu-title {
+  flex: 1;
+  font-size: 14px;
+  color: #495057;
+}
