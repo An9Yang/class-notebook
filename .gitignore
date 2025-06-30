@@ -50,3 +50,5 @@ backend/uploads/images/*
 # test files
 test-transcription.js
 test-api-responses.ts
+test-github-token.sh
+setup-github-ssh.sh
