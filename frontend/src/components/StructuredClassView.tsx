@@ -6,6 +6,7 @@ import QAChat from './QAChat';
 import BlockEditor from './BlockEditor';
 import OCRDisplay from './OCRDisplay';
 import '../styles/RichTextEditor.css';
+import '../styles/BlockEditor.css';
 
 interface Recording {
   _id: string;
@@ -70,16 +71,25 @@ const StructuredClassView: React.FC = () => {
   const [classData, setClassData] = useState<ClassData | null>(null);
   const [loading, setLoading] = useState(true);
   const [processingAI, setProcessingAI] = useState(false);
-  const [activeTab, setActiveTab] = useState<'outline' | 'transcript' | 'edit'>('outline');
-  const [showChat, setShowChat] = useState(false);
+  const [viewMode, setViewMode] = useState<'outline' | 'transcript'>('outline');
   const [expandedChapters, setExpandedChapters] = useState<Set<number>>(new Set());
   const [notes, setNotes] = useState('');
   const [saving, setSaving] = useState(false);
+  const [editingChapter, setEditingChapter] = useState<number | null>(null);
+  const [chapterContents, setChapterContents] = useState<{ [key: number]: Chapter }>({});
 
   // 加载课堂数据
   useEffect(() => {
     loadClassData();
   }, [id]);
+
+  // 默认展开前几个章节
+  useEffect(() => {
+    if (classData?.aiOutline && expandedChapters.size === 0) {
+      // 默认展开前两个章节
+      setExpandedChapters(new Set([0, 1]));
+    }
+  }, [classData?.aiOutline]);
 
   const loadClassData = async () => {
     try {
@@ -208,6 +218,17 @@ const StructuredClassView: React.FC = () => {
     });
   };
 
+  // 初始化章节内容
+  useEffect(() => {
+    if (classData?.aiOutline && Array.isArray(classData.aiOutline)) {
+      const initialContents: { [key: number]: Chapter } = {};
+      classData.aiOutline.forEach((chapter, index) => {
+        initialContents[index] = { ...chapter };
+      });
+      setChapterContents(initialContents);
+    }
+  }, [classData?.aiOutline]);
+
   // 格式化时间
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
@@ -240,6 +261,38 @@ const StructuredClassView: React.FC = () => {
     .map(r => r.transcript || '（转写中...）')
     .join('\n\n');
 
+  // 处理章节内容编辑
+  const handleChapterEdit = (index: number, field: keyof Chapter, value: any) => {
+    setChapterContents(prev => ({
+      ...prev,
+      [index]: {
+        ...prev[index],
+        [field]: value
+      }
+    }));
+  };
+
+  // 保存章节修改
+  const saveChapterEdit = async (index: number) => {
+    if (!classData) return;
+    
+    try {
+      const updatedOutline = [...(classData.aiOutline || [])];
+      updatedOutline[index] = chapterContents[index];
+      
+      await api.put(`/api/classes/${classData._id}`, { 
+        aiOutline: updatedOutline 
+      });
+      
+      setClassData(prev => prev ? { ...prev, aiOutline: updatedOutline } : null);
+      setEditingChapter(null);
+    } catch (error: any) {
+      console.error('保存章节失败:', error);
+      const errorMessage = extractErrorMessage(error);
+      alert(`保存失败: ${errorMessage}`);
+    }
+  };
+
   return (
     <div style={styles.container}>
       <header style={styles.header}>
@@ -252,53 +305,19 @@ const StructuredClassView: React.FC = () => {
           </p>
         </div>
         <div style={styles.headerActions}>
-          <button 
-            onClick={() => setShowChat(!showChat)} 
-            style={{ ...styles.actionButton, backgroundColor: '#61dafb' }}
-          >
-            {showChat ? '隐藏助手' : '🤖 学习助手'}
-          </button>
           <button onClick={() => navigate('/dashboard')} style={styles.actionButton}>
             返回
           </button>
         </div>
       </header>
 
-      <div style={styles.content}>
-        {/* 标签页切换 */}
-        <div style={styles.tabs}>
-          <button 
-            onClick={() => setActiveTab('outline')}
-            style={{
-              ...styles.tab,
-              ...(activeTab === 'outline' ? styles.activeTab : {})
-            }}
-          >
-            📋 课堂大纲
-          </button>
-          <button 
-            onClick={() => setActiveTab('transcript')}
-            style={{
-              ...styles.tab,
-              ...(activeTab === 'transcript' ? styles.activeTab : {})
-            }}
-          >
-            📄 完整转写
-          </button>
-          <button 
-            onClick={() => setActiveTab('edit')}
-            style={{
-              ...styles.tab,
-              ...(activeTab === 'edit' ? styles.activeTab : {})
-            }}
-          >
-            ✏️ 编辑笔记
-          </button>
-        </div>
+      <div style={styles.mainLayout}>
+        {/* 左侧主区域 - 块状笔记本 */}
+        <div style={styles.notebookArea}>
 
-        {/* 大纲视图 */}
-        {activeTab === 'outline' && (
-          <div style={styles.outlineView}>
+          {/* 大纲视图 */}
+          {viewMode === 'outline' ? (
+            <div style={styles.outlineView}>
             {processingAI && (
               <div style={styles.processingMessage}>
                 🤖 AI正在生成课堂大纲...
@@ -320,92 +339,191 @@ const StructuredClassView: React.FC = () => {
               </div>
             )}
             
-            {classData.aiOutline && classData.aiOutline.length > 0 ? (
-              classData.aiOutline.map((chapter, index) => (
-                <div key={index} style={styles.chapter}>
-                  <div 
-                    style={styles.chapterHeader}
-                    onClick={() => toggleChapter(index)}
-                  >
-                    <h3>{chapter.title}</h3>
-                    <span style={styles.chapterTime}>
-                      {formatTime(chapter.startTime)} - {formatTime(chapter.endTime)}
-                    </span>
-                    <span style={styles.expandIcon}>
-                      {expandedChapters.has(index) ? '▼' : '▶'}
-                    </span>
-                  </div>
+              {classData.aiOutline && Array.isArray(classData.aiOutline) && classData.aiOutline.length > 0 ? (
+                classData.aiOutline.map((chapter, index) => {
+                  const isEditing = editingChapter === index;
+                  const chapterContent = chapterContents[index] || chapter;
                   
-                  {expandedChapters.has(index) && (
-                    <div style={styles.chapterContent}>
-                      {/* 关键点 */}
-                      {chapter.keyPoints.length > 0 && (
-                        <div style={styles.keyPoints}>
-                          <h4>🎯 关键点</h4>
-                          <ul>
-                            {chapter.keyPoints.map((point, idx) => (
-                              <li key={idx}>{point}</li>
-                            ))}
-                          </ul>
+                  return (
+                    <div 
+                      key={index} 
+                      style={{
+                        ...styles.chapterBlock,
+                        boxShadow: expandedChapters.has(index) ? '0 2px 8px rgba(0,0,0,0.08)' : '0 1px 2px rgba(0,0,0,0.05)'
+                      }}
+                    >
+                      <div 
+                        style={styles.chapterHeader}
+                        onClick={() => !isEditing && toggleChapter(index)}
+                      >
+                        {isEditing ? (
+                          <input
+                            type="text"
+                            value={chapterContent.title}
+                            onChange={(e) => handleChapterEdit(index, 'title', e.target.value)}
+                            style={styles.chapterTitleInput}
+                            onClick={(e) => e.stopPropagation()}
+                          />
+                        ) : (
+                          <h3 style={styles.chapterTitle}>{chapter.title}</h3>
+                        )}
+                        <div style={styles.chapterMeta}>
+                          <span style={styles.chapterTime}>
+                            {formatTime(chapter.startTime)} - {formatTime(chapter.endTime)}
+                          </span>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (isEditing) {
+                                saveChapterEdit(index);
+                              } else {
+                                setEditingChapter(index);
+                              }
+                            }}
+                            style={styles.editButton}
+                          >
+                            {isEditing ? '保存' : '编辑'}
+                          </button>
+                          {isEditing && (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setEditingChapter(null);
+                                setChapterContents(prev => ({
+                                  ...prev,
+                                  [index]: chapter
+                                }));
+                              }}
+                              style={styles.cancelButton}
+                            >
+                              取消
+                            </button>
+                          )}
+                          <span style={styles.expandIcon}>
+                            {expandedChapters.has(index) ? '▼' : '▶'}
+                          </span>
+                        </div>
+                      </div>
+                  
+                      {expandedChapters.has(index) && (
+                        <div style={styles.chapterContent}>
+                          {/* 关键点 */}
+                          <div style={styles.keyPointsSection}>
+                            <h4 style={styles.sectionTitle}>关键要点</h4>
+                            {isEditing ? (
+                              <div style={styles.keyPointsEditor}>
+                                {chapterContent.keyPoints.map((point, idx) => (
+                                  <div key={idx} style={styles.keyPointItem}>
+                                    <input
+                                      type="text"
+                                      value={point}
+                                      onChange={(e) => {
+                                        const newPoints = [...chapterContent.keyPoints];
+                                        newPoints[idx] = e.target.value;
+                                        handleChapterEdit(index, 'keyPoints', newPoints);
+                                      }}
+                                      style={styles.keyPointInput}
+                                    />
+                                    <button
+                                      onClick={() => {
+                                        const newPoints = chapterContent.keyPoints.filter((_, i) => i !== idx);
+                                        handleChapterEdit(index, 'keyPoints', newPoints);
+                                      }}
+                                      style={styles.removeButton}
+                                    >
+                                      ×
+                                    </button>
+                                  </div>
+                                ))}
+                                <button
+                                  onClick={() => {
+                                    handleChapterEdit(index, 'keyPoints', [...chapterContent.keyPoints, '']);
+                                  }}
+                                  style={styles.addButton}
+                                >
+                                  + 添加要点
+                                </button>
+                              </div>
+                            ) : (
+                              <ul style={styles.keyPointsList}>
+                                {chapter.keyPoints.map((point, idx) => (
+                                  <li key={idx} style={styles.keyPointListItem}>{point}</li>
+                                ))}
+                              </ul>
+                            )}
+                          </div>
+                      
+                          {/* 主要内容 */}
+                          <div style={styles.contentSection}>
+                            <h4 style={styles.sectionTitle}>详细内容</h4>
+                            {isEditing ? (
+                              <textarea
+                                value={chapterContent.content}
+                                onChange={(e) => handleChapterEdit(index, 'content', e.target.value)}
+                                style={styles.contentTextarea}
+                                rows={6}
+                              />
+                            ) : (
+                              <p style={styles.contentText}>{chapter.content}</p>
+                            )}
+                          </div>
+                      
+                          {/* PPT/板书内容 */}
+                          {(() => {
+                            const relatedImages = getRelatedImages(chapter.relatedImages);
+                            return relatedImages.length > 0 && (
+                              <div style={styles.mediaSection}>
+                                <h4 style={styles.sectionTitle}>PPT/板书内容</h4>
+                                <div style={styles.mediaGrid}>
+                                  {relatedImages.map(image => (
+                                    <div key={image._id} style={styles.mediaCard}>
+                                      <img 
+                                        src={`http://localhost:3001${image.url}`} 
+                                        alt="课堂图片"
+                                        style={styles.mediaThumbnail}
+                                      />
+                                      <div style={styles.mediaContent}>
+                                        {image.ocrText ? (
+                                          <OCRDisplay 
+                                            text={image.ocrText} 
+                                            tables={image.ocrTables}
+                                          />
+                                        ) : (
+                                          <button 
+                                            onClick={() => processOCR(image._id)}
+                                            style={styles.ocrButton}
+                                          >
+                                            识别文字
+                                          </button>
+                                        )}
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            );
+                          })()}
+                      
+                          {/* 相关笔记 */}
+                          {(() => {
+                            const relatedNotes = getRelatedNotes(chapter.relatedNotes);
+                            return relatedNotes.length > 0 && (
+                              <div style={styles.notesSection}>
+                                <h4 style={styles.sectionTitle}>课堂笔记</h4>
+                                {relatedNotes.map(note => (
+                                  <div key={note.eventId} style={styles.noteCard}>
+                                    <span style={styles.noteTime}>{formatTime(note.timestamp)}</span>
+                                    <p style={styles.noteContent}>{note.data.content}</p>
+                                  </div>
+                                ))}
+                              </div>
+                            );
+                          })()}
                         </div>
                       )}
-                      
-                      {/* 转写内容 */}
-                      <div style={styles.transcriptSection}>
-                        <p>{chapter.content}</p>
-                      </div>
-                      
-                      {/* 相关图片 */}
-                      {(() => {
-                        const relatedImages = getRelatedImages(chapter.relatedImages);
-                        return relatedImages.length > 0 && (
-                          <div style={styles.imagesSection}>
-                            <h4>📸 相关图片</h4>
-                            {relatedImages.map(image => (
-                              <div key={image._id} style={styles.imageItem}>
-                                <img 
-                                  src={`http://localhost:3001${image.url}`} 
-                                  alt="课堂图片"
-                                  style={styles.thumbnail}
-                                />
-                                {image.ocrText ? (
-                                  <OCRDisplay 
-                                    text={image.ocrText} 
-                                    tables={image.ocrTables}
-                                  />
-                                ) : (
-                                  <button 
-                                    onClick={() => processOCR(image._id)}
-                                    style={styles.ocrButton}
-                                  >
-                                    识别文字
-                                  </button>
-                                )}
-                              </div>
-                            ))}
-                          </div>
-                        );
-                      })()}
-                      
-                      {/* 相关笔记 */}
-                      {(() => {
-                        const relatedNotes = getRelatedNotes(chapter.relatedNotes);
-                        return relatedNotes.length > 0 && (
-                          <div style={styles.notesSection}>
-                            <h4>📝 笔记</h4>
-                            {relatedNotes.map(note => (
-                              <div key={note.eventId} style={styles.noteItem}>
-                                <span style={styles.noteTime}>{formatTime(note.timestamp)}</span>
-                                <p>{note.data.content}</p>
-                              </div>
-                            ))}
-                          </div>
-                        );
-                      })()}
                     </div>
-                  )}
-                </div>
-              ))
+                  );
+                })
             ) : (
               // 基础时间轴视图（没有AI大纲时）
               <div style={styles.timelineView}>
@@ -460,46 +578,35 @@ const StructuredClassView: React.FC = () => {
                   })}
               </div>
             )}
-          </div>
-        )}
-
-        {/* 转写文本视图 */}
-        {activeTab === 'transcript' && (
-          <div style={styles.transcriptView}>
-            <h3>完整转写文本</h3>
-            <pre style={styles.transcriptText}>{fullTranscript}</pre>
-          </div>
-        )}
-
-        {/* 笔记编辑视图 */}
-        {activeTab === 'edit' && (
-          <div style={styles.editView}>
-            <div style={styles.editHeader}>
-              <h3>编辑笔记</h3>
-              <button 
-                onClick={saveNotes}
-                disabled={saving}
-                style={styles.saveButton}
-              >
-                {saving ? '保存中...' : '保存笔记'}
-              </button>
             </div>
-            
-            <BlockEditor
-              content={notes}
-              onChange={setNotes}
-              placeholder="在这里整理你的课堂笔记..."
-            />
+          ) : (
+            /* 完整转写视图 */
+            <div style={styles.transcriptView}>
+              <div style={styles.transcriptHeader}>
+                <h2 style={styles.transcriptTitle}>完整转写文本</h2>
+              </div>
+              <div style={styles.transcriptContent}>
+                <pre style={styles.transcriptText}>{fullTranscript}</pre>
+              </div>
+            </div>
+          )}
+          
+          {/* 底部切换按钮 */}
+          <div style={styles.viewSwitcher}>
+            <button
+              onClick={() => setViewMode(viewMode === 'outline' ? 'transcript' : 'outline')}
+              style={styles.switchButton}
+            >
+              {viewMode === 'outline' ? '查看完整转写' : '返回大纲视图'}
+            </button>
           </div>
-        )}
-      </div>
+        </div>
 
-      {/* 问答助手 */}
-      {showChat && (
-        <div style={styles.chatContainer}>
+        {/* 右侧固定AI助手 */}
+        <div style={styles.sidebarArea}>
           <QAChat classId={classData._id} />
         </div>
-      )}
+      </div>
     </div>
   );
 };
@@ -507,170 +614,326 @@ const StructuredClassView: React.FC = () => {
 const styles: { [key: string]: React.CSSProperties } = {
   container: {
     minHeight: '100vh',
-    backgroundColor: '#f0f2f5'
+    backgroundColor: '#f5f6f7',
+    display: 'flex',
+    flexDirection: 'column'
   },
   header: {
     backgroundColor: 'white',
-    padding: '20px 40px',
-    boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+    padding: '16px 24px',
+    boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
     display: 'flex',
     justifyContent: 'space-between',
-    alignItems: 'center'
+    alignItems: 'center',
+    borderBottom: '1px solid #e4e6eb'
   },
   meta: {
-    color: '#666',
-    marginTop: '5px'
+    color: '#65676b',
+    marginTop: '4px',
+    fontSize: '14px'
   },
   headerActions: {
     display: 'flex',
-    gap: '10px'
+    gap: '12px'
   },
   actionButton: {
-    padding: '10px 20px',
-    backgroundColor: '#666',
-    color: 'white',
+    padding: '8px 16px',
+    backgroundColor: '#e4e6eb',
+    color: '#050505',
     border: 'none',
-    borderRadius: '5px',
-    cursor: 'pointer'
-  },
-  content: {
-    padding: '20px 40px',
-    maxWidth: '1200px',
-    margin: '0 auto'
-  },
-  tabs: {
-    display: 'flex',
-    gap: '5px',
-    marginBottom: '20px',
-    borderBottom: '2px solid #e0e0e0'
-  },
-  tab: {
-    padding: '12px 24px',
-    backgroundColor: 'transparent',
-    border: 'none',
-    borderBottom: '3px solid transparent',
+    borderRadius: '6px',
     cursor: 'pointer',
-    fontSize: '16px',
-    transition: 'all 0.3s'
+    fontSize: '14px',
+    fontWeight: '500',
+    transition: 'background-color 0.2s'
   },
-  activeTab: {
-    borderBottom: '3px solid #61dafb',
-    color: '#61dafb',
-    fontWeight: 'bold'
+  mainLayout: {
+    display: 'flex',
+    flex: 1,
+    height: 'calc(100vh - 70px)',
+    overflow: 'hidden'
+  },
+  notebookArea: {
+    flex: 1,
+    backgroundColor: '#f5f6f7',
+    overflow: 'hidden',
+    display: 'flex',
+    flexDirection: 'column'
   },
   outlineView: {
+    flex: 1,
     backgroundColor: 'white',
-    padding: '30px',
-    borderRadius: '10px',
-    boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+    margin: '20px',
+    marginRight: '10px',
+    borderRadius: '8px',
+    boxShadow: '0 1px 2px rgba(0,0,0,0.1)',
+    overflow: 'auto',
+    padding: '24px'
   },
   processingMessage: {
     textAlign: 'center',
-    padding: '40px',
-    fontSize: '18px',
-    color: '#666'
+    padding: '60px 20px',
+    fontSize: '16px',
+    color: '#65676b'
   },
-  chapter: {
-    marginBottom: '20px',
-    border: '1px solid #e0e0e0',
+  generateOutlineContainer: {
+    textAlign: 'center',
+    padding: '60px 20px',
+    backgroundColor: '#f0f7ff',
+    borderRadius: '12px',
+    margin: '20px 0'
+  },
+  generateOutlineText: {
+    fontSize: '16px',
+    color: '#65676b',
+    marginBottom: '20px'
+  },
+  generateOutlineButton: {
+    padding: '12px 24px',
+    backgroundColor: '#1877f2',
+    color: 'white',
+    border: 'none',
     borderRadius: '8px',
-    overflow: 'hidden'
+    fontSize: '16px',
+    fontWeight: '600',
+    cursor: 'pointer',
+    transition: 'background-color 0.2s'
+  },
+  chapterBlock: {
+    marginBottom: '16px',
+    backgroundColor: 'white',
+    border: '1px solid #e4e6eb',
+    borderRadius: '8px',
+    overflow: 'hidden',
+    transition: 'all 0.2s ease',
+    cursor: 'pointer'
   },
   chapterHeader: {
-    padding: '20px',
-    backgroundColor: '#f8f9fa',
+    padding: '16px 20px',
+    backgroundColor: '#ffffff',
     cursor: 'pointer',
     display: 'flex',
     alignItems: 'center',
-    gap: '10px'
+    justifyContent: 'space-between',
+    borderBottom: '1px solid #e4e6eb',
+    transition: 'background-color 0.2s'
+  },
+  chapterTitle: {
+    margin: 0,
+    fontSize: '18px',
+    fontWeight: '600',
+    color: '#050505'
+  },
+  chapterTitleInput: {
+    fontSize: '18px',
+    fontWeight: '600',
+    padding: '4px 8px',
+    border: '1px solid #1877f2',
+    borderRadius: '4px',
+    width: '100%',
+    maxWidth: '500px'
+  },
+  chapterMeta: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '12px'
   },
   chapterTime: {
-    color: '#666',
+    color: '#65676b',
     fontSize: '14px',
-    marginLeft: 'auto'
+    fontWeight: '400'
+  },
+  editButton: {
+    padding: '6px 12px',
+    backgroundColor: '#e4e6eb',
+    border: 'none',
+    borderRadius: '6px',
+    fontSize: '14px',
+    cursor: 'pointer',
+    fontWeight: '500',
+    transition: 'background-color 0.2s'
+  },
+  cancelButton: {
+    padding: '6px 12px',
+    backgroundColor: '#fff',
+    border: '1px solid #e4e6eb',
+    borderRadius: '6px',
+    fontSize: '14px',
+    cursor: 'pointer',
+    fontWeight: '500'
   },
   expandIcon: {
     fontSize: '12px',
-    color: '#666'
+    color: '#65676b',
+    marginLeft: '8px'
   },
   chapterContent: {
     padding: '20px',
-    borderTop: '1px solid #e0e0e0'
+    backgroundColor: '#f8f9fa'
   },
-  keyPoints: {
-    marginBottom: '20px',
-    padding: '15px',
-    backgroundColor: '#fff3cd',
-    borderRadius: '5px'
+  sectionTitle: {
+    fontSize: '16px',
+    fontWeight: '600',
+    marginBottom: '12px',
+    color: '#050505'
   },
-  transcriptSection: {
-    marginBottom: '20px',
+  keyPointsSection: {
+    marginBottom: '24px'
+  },
+  keyPointsList: {
+    margin: 0,
+    paddingLeft: '20px',
     lineHeight: '1.8'
   },
-  imagesSection: {
-    marginBottom: '20px'
+  keyPointListItem: {
+    marginBottom: '8px',
+    color: '#050505'
   },
-  imageItem: {
-    marginBottom: '15px',
-    padding: '15px',
-    backgroundColor: '#f8f9fa',
-    borderRadius: '5px'
+  keyPointsEditor: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '8px'
   },
-  thumbnail: {
-    maxWidth: '300px',
-    maxHeight: '200px',
-    marginBottom: '10px',
-    borderRadius: '5px'
+  keyPointItem: {
+    display: 'flex',
+    gap: '8px',
+    alignItems: 'center'
+  },
+  keyPointInput: {
+    flex: 1,
+    padding: '8px 12px',
+    border: '1px solid #e4e6eb',
+    borderRadius: '6px',
+    fontSize: '14px'
+  },
+  removeButton: {
+    width: '32px',
+    height: '32px',
+    border: 'none',
+    borderRadius: '6px',
+    backgroundColor: '#e4e6eb',
+    cursor: 'pointer',
+    fontSize: '18px',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center'
+  },
+  addButton: {
+    padding: '8px 16px',
+    backgroundColor: '#e7f3ff',
+    color: '#1877f2',
+    border: 'none',
+    borderRadius: '6px',
+    fontSize: '14px',
+    fontWeight: '500',
+    cursor: 'pointer',
+    marginTop: '8px'
+  },
+  contentSection: {
+    marginBottom: '24px'
+  },
+  contentText: {
+    lineHeight: '1.8',
+    color: '#050505',
+    margin: 0
+  },
+  contentTextarea: {
+    width: '100%',
+    padding: '12px',
+    border: '1px solid #e4e6eb',
+    borderRadius: '6px',
+    fontSize: '14px',
+    lineHeight: '1.6',
+    resize: 'vertical'
+  },
+  mediaSection: {
+    marginBottom: '24px'
+  },
+  mediaGrid: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))',
+    gap: '16px'
+  },
+  mediaCard: {
+    backgroundColor: 'white',
+    border: '1px solid #e4e6eb',
+    borderRadius: '8px',
+    overflow: 'hidden'
+  },
+  mediaThumbnail: {
+    width: '100%',
+    height: '200px',
+    objectFit: 'cover',
+    borderBottom: '1px solid #e4e6eb'
+  },
+  mediaContent: {
+    padding: '12px'
   },
   ocrButton: {
     padding: '8px 16px',
-    backgroundColor: '#51cf66',
+    backgroundColor: '#42b883',
     color: 'white',
     border: 'none',
-    borderRadius: '5px',
-    cursor: 'pointer'
+    borderRadius: '6px',
+    cursor: 'pointer',
+    fontSize: '14px',
+    fontWeight: '500',
+    width: '100%',
+    transition: 'background-color 0.2s'
   },
   notesSection: {
-    marginBottom: '20px'
+    marginBottom: '24px'
   },
-  noteItem: {
-    padding: '10px',
-    backgroundColor: '#e3f2fd',
-    borderRadius: '5px',
-    marginBottom: '10px'
+  noteCard: {
+    padding: '12px 16px',
+    backgroundColor: '#e7f3ff',
+    borderRadius: '8px',
+    marginBottom: '8px',
+    border: '1px solid #d0e8ff'
   },
   noteTime: {
     fontSize: '12px',
-    color: '#666',
-    marginRight: '10px'
+    color: '#65676b',
+    fontWeight: '500',
+    display: 'block',
+    marginBottom: '4px'
+  },
+  noteContent: {
+    margin: 0,
+    color: '#050505',
+    fontSize: '14px',
+    lineHeight: '1.6'
   },
   timelineView: {
-    padding: '20px'
+    padding: '24px'
   },
   timelineItem: {
     display: 'flex',
     alignItems: 'flex-start',
-    marginBottom: '15px',
-    paddingLeft: '20px',
-    borderLeft: '2px solid #e0e0e0'
+    marginBottom: '16px',
+    paddingLeft: '24px',
+    borderLeft: '2px solid #e4e6eb',
+    position: 'relative'
   },
   timelineTime: {
-    minWidth: '60px',
-    color: '#666',
-    fontSize: '14px'
+    minWidth: '80px',
+    color: '#65676b',
+    fontSize: '14px',
+    fontWeight: '500'
   },
   timelineNote: {
     marginLeft: '20px',
-    padding: '10px',
-    backgroundColor: '#e3f2fd',
-    borderRadius: '5px',
-    flex: 1
+    padding: '12px 16px',
+    backgroundColor: '#e7f3ff',
+    borderRadius: '8px',
+    flex: 1,
+    border: '1px solid #d0e8ff'
   },
   timelineImage: {
     marginLeft: '20px',
-    padding: '10px',
-    backgroundColor: '#f0f0f0',
-    borderRadius: '5px',
+    padding: '12px 16px',
+    backgroundColor: '#f0f2f5',
+    borderRadius: '8px',
     flex: 1
   },
   timelineImageContainer: {
@@ -678,102 +941,99 @@ const styles: { [key: string]: React.CSSProperties } = {
     flex: 1
   },
   timelineImagePreview: {
-    marginTop: '10px',
-    padding: '15px',
-    backgroundColor: '#f8f9fa',
-    borderRadius: '5px'
+    marginTop: '12px',
+    padding: '16px',
+    backgroundColor: 'white',
+    borderRadius: '8px',
+    border: '1px solid #e4e6eb'
   },
   timelineThumbnail: {
-    maxWidth: '200px',
-    maxHeight: '150px',
-    marginBottom: '10px',
-    borderRadius: '5px'
+    maxWidth: '240px',
+    maxHeight: '180px',
+    marginBottom: '12px',
+    borderRadius: '6px',
+    border: '1px solid #e4e6eb'
   },
   timelineOCR: {
-    marginTop: '10px',
-    fontSize: '14px'
+    marginTop: '12px',
+    fontSize: '14px',
+    lineHeight: '1.6'
   },
   transcriptView: {
+    flex: 1,
     backgroundColor: 'white',
-    padding: '30px',
-    borderRadius: '10px',
-    boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+    margin: '20px',
+    marginRight: '10px',
+    borderRadius: '8px',
+    boxShadow: '0 1px 2px rgba(0,0,0,0.1)',
+    overflow: 'hidden',
+    display: 'flex',
+    flexDirection: 'column'
+  },
+  transcriptHeader: {
+    padding: '20px 24px',
+    borderBottom: '1px solid #e4e6eb'
+  },
+  transcriptTitle: {
+    margin: 0,
+    fontSize: '20px',
+    fontWeight: '600',
+    color: '#050505'
+  },
+  transcriptContent: {
+    flex: 1,
+    padding: '24px',
+    overflow: 'auto'
   },
   transcriptText: {
     whiteSpace: 'pre-wrap',
     lineHeight: '1.8',
-    fontSize: '16px',
-    fontFamily: 'monospace',
-    backgroundColor: '#f5f5f5',
+    fontSize: '15px',
+    fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+    color: '#050505',
+    margin: 0
+  },
+  viewSwitcher: {
     padding: '20px',
-    borderRadius: '5px',
-    maxHeight: '600px',
-    overflow: 'auto'
-  },
-  editView: {
+    borderTop: '1px solid #e4e6eb',
     backgroundColor: 'white',
-    padding: '30px',
-    borderRadius: '10px',
-    boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+    textAlign: 'center'
   },
-  editHeader: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: '20px'
-  },
-  saveButton: {
-    padding: '10px 20px',
-    backgroundColor: '#51cf66',
+  switchButton: {
+    padding: '12px 32px',
+    backgroundColor: '#1877f2',
     color: 'white',
     border: 'none',
-    borderRadius: '5px',
-    cursor: 'pointer'
+    borderRadius: '8px',
+    fontSize: '16px',
+    fontWeight: '600',
+    cursor: 'pointer',
+    transition: 'background-color 0.2s'
+  },
+  sidebarArea: {
+    width: '400px',
+    backgroundColor: '#ffffff',
+    borderLeft: '1px solid #e4e6eb',
+    display: 'flex',
+    flexDirection: 'column',
+    overflow: 'hidden',
+    padding: '20px'
   },
   loading: {
     display: 'flex',
     justifyContent: 'center',
     alignItems: 'center',
     height: '100vh',
-    fontSize: '20px',
-    color: '#666'
+    fontSize: '18px',
+    color: '#65676b'
   },
   error: {
     display: 'flex',
     justifyContent: 'center',
     alignItems: 'center',
     height: '100vh',
-    fontSize: '20px',
-    color: '#ff6b6b'
-  },
-  chatContainer: {
-    position: 'fixed',
-    bottom: '20px',
-    right: '20px',
-    zIndex: 1000
-  },
-  generateOutlineContainer: {
-    textAlign: 'center',
-    padding: '40px',
-    backgroundColor: '#f0f7ff',
-    borderRadius: '10px',
-    marginBottom: '20px'
-  },
-  generateOutlineText: {
-    fontSize: '16px',
-    color: '#666',
-    marginBottom: '20px'
-  },
-  generateOutlineButton: {
-    padding: '12px 24px',
-    backgroundColor: '#61dafb',
-    color: 'white',
-    border: 'none',
-    borderRadius: '8px',
-    fontSize: '16px',
-    fontWeight: 'bold',
-    cursor: 'pointer',
-    transition: 'all 0.3s'
+    fontSize: '18px',
+    color: '#e74c3c'
   }
 };
 

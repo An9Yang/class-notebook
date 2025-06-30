@@ -2,6 +2,8 @@ const Class = require('../models/Class');
 const path = require('path');
 const { transcribeAudioREST } = require('../services/azureSpeechSimple');
 const { transcribeAudioEnhanced } = require('../services/azureSpeechEnhanced');
+const { transcribeLongAudio } = require('../services/azureSpeechLongAudio');
+const { transcribeAudioWhisper } = require('../services/azureWhisper');
 
 // 上传录音文件
 exports.uploadRecording = async (req, res) => {
@@ -80,13 +82,23 @@ exports.uploadRecording = async (req, res) => {
       console.log('文件是否存在:', require('fs').existsSync(audioPath));
       console.log('文件大小:', require('fs').statSync(audioPath).size, 'bytes');
       
-      // 先尝试增强版转写
+      // 优先使用 Azure OpenAI Whisper（支持长音频，准确率高）
       let transcript;
       try {
-        transcript = await transcribeAudioEnhanced(audioPath);
-      } catch (enhancedError) {
-        console.log('增强版转写失败，尝试基础版本:', enhancedError.message);
-        transcript = await transcribeAudioREST(audioPath);
+        transcript = await transcribeAudioWhisper(audioPath);
+      } catch (whisperError) {
+        console.log('Whisper转写失败，尝试长音频分段转写:', whisperError.message);
+        try {
+          transcript = await transcribeLongAudio(audioPath);
+        } catch (longAudioError) {
+          console.log('长音频转写失败，尝试增强版:', longAudioError.message);
+          try {
+            transcript = await transcribeAudioEnhanced(audioPath);
+          } catch (enhancedError) {
+            console.log('增强版转写失败，尝试基础版本:', enhancedError.message);
+            transcript = await transcribeAudioREST(audioPath);
+          }
+        }
       }
       console.log('=== 转写结果 ===');
       console.log('转写内容:', transcript);

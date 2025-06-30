@@ -18,7 +18,6 @@ const QAChat: React.FC<QAChatProps> = ({ classId, className }) => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputValue, setInputValue] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [isMinimized, setIsMinimized] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
@@ -146,25 +145,11 @@ const QAChat: React.FC<QAChatProps> = ({ classId, className }) => {
     }
   };
 
-  if (isMinimized) {
-    return (
-      <div style={styles.minimized} onClick={() => setIsMinimized(false)}>
-        <span style={styles.minimizedIcon}>💬</span>
-        <span>学习助手</span>
-      </div>
-    );
-  }
 
   return (
     <div style={styles.container} className={className}>
       <div style={styles.header}>
-        <h3 style={styles.title}>🤖 学习助手</h3>
-        <button 
-          onClick={() => setIsMinimized(true)}
-          style={styles.minimizeButton}
-        >
-          －
-        </button>
+        <h3 style={styles.title}>AI 学习助手</h3>
       </div>
 
       <div style={styles.quickActions}>
@@ -245,11 +230,11 @@ const QAChat: React.FC<QAChatProps> = ({ classId, className }) => {
 
 const styles: { [key: string]: React.CSSProperties } = {
   container: {
-    width: '400px',
-    height: '600px',
+    width: '100%',
+    height: '100%',
     backgroundColor: 'white',
-    borderRadius: '10px',
-    boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+    borderRadius: '8px',
+    border: '1px solid #e4e6eb',
     display: 'flex',
     flexDirection: 'column',
     overflow: 'hidden'
@@ -360,26 +345,6 @@ const styles: { [key: string]: React.CSSProperties } = {
     fontWeight: 'bold',
     transition: 'background-color 0.2s'
   },
-  minimized: {
-    position: 'fixed',
-    bottom: '20px',
-    right: '20px',
-    padding: '15px 20px',
-    backgroundColor: '#61dafb',
-    color: 'white',
-    borderRadius: '30px',
-    boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
-    cursor: 'pointer',
-    display: 'flex',
-    alignItems: 'center',
-    gap: '10px',
-    fontSize: '16px',
-    fontWeight: 'bold',
-    transition: 'transform 0.2s'
-  },
-  minimizedIcon: {
-    fontSize: '20px'
-  }
 };
 
 export default QAChat;

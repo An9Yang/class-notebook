@@ -273,7 +273,7 @@ const IntegratedClassRoom: React.FC = () => {
           <div style={styles.formGroup}>
             <input
               type="text"
-              value={title}
+              value={title || ''}
               onChange={(e) => setTitle(e.target.value)}
               placeholder="课堂标题（选填）"
               style={styles.input}

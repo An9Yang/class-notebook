@@ -109,6 +109,17 @@ const classSchema = new mongoose.Schema({
     default: 'active'
   },
   
+  // AI生成的大纲
+  aiOutline: [{
+    title: String,
+    startTime: Number,
+    endTime: Number,
+    content: String,
+    keyPoints: [String],
+    relatedNotes: [Number],
+    relatedImages: [Number]
+  }],
+  
   // 创建时间
   createdAt: {
     type: Date,
